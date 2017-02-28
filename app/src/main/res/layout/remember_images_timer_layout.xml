@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/margin_large"
+    android:layout_marginBottom="@dimen/margin_large"
+    android:orientation="vertical"
+    android:visibility="visible">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingBottom="@dimen/margin_large"
+        android:paddingLeft="@dimen/margin_large"
+        android:paddingRight="@dimen/margin_large"
+        android:text="@string/remember_images"
+        android:textSize="@dimen/medium" />
+
+    <ProgressBar
+        android:id="@+id/progress_bar_linear"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="5dp"
+        android:layout_centerInParent="true"
+        android:indeterminate="false"
+        android:progress="0"
+        android:progressDrawable="@drawable/progress_bar_red_style" />
+
+
+    <Button
+        android:id="@+id/button_start_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingBottom="@dimen/margin_large"
+        android:paddingLeft="@dimen/margin_xxlarge"
+        android:paddingRight="@dimen/margin_xxlarge"
+        android:paddingTop="@dimen/margin_large"
+        android:layout_gravity="center"
+        android:text="@string/start_timer"
+        android:textAllCaps="false"
+        android:textSize="@dimen/medium" />
+
+</LinearLayout>

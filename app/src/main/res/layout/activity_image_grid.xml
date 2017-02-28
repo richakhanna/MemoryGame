@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_small_vertical_margin"
+    android:paddingLeft="@dimen/activity_small_horizontal_margin"
+    android:paddingRight="@dimen/activity_small_horizontal_margin"
+    android:paddingTop="@dimen/activity_small_vertical_margin"
+    tools:context=".ui.activity.ImageGridActivity">
+
+
+    <include
+        android:id="@+id/remember_images_timer_layout"
+        layout="@layout/remember_images_timer_layout" />
+
+    <!-- A RecyclerView with some commonly used attributes -->
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/photo_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/remember_images_timer_layout"
+        android:scrollbars="vertical" />
+
+    <include layout="@layout/network_retry_layout" />
+
+</RelativeLayout>
