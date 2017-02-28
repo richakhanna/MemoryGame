@@ -14,8 +14,10 @@ import android.util.Log;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -29,21 +31,23 @@ import com.richdroid.memorygame.rest.ApiManager;
 import com.richdroid.memorygame.rest.ApiRequester;
 import com.richdroid.memorygame.ui.adapter.PhotoGridAdapter;
 import com.richdroid.memorygame.utils.NetworkUtils;
+import com.richdroid.memorygame.utils.PabloPicasso;
 import com.richdroid.memorygame.utils.ProgressBarUtil;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import retrofit2.Response;
 
-public class ImageGridActivity extends AppCompatActivity implements View.OnClickListener {
+public class ImageGridActivity extends AppCompatActivity implements View.OnClickListener, PhotoGridAdapter.OnGuessedCorrect {
 
     private static final String TAG = ImageGridActivity.class.getSimpleName();
     private static final int UPDATE_PROGRESS_BAR = 1001;
     private static final int MAX_PROGRESS = 500;
     private RecyclerView mRecyclerView;
-    private RecyclerView.Adapter mAdapter;
+    private PhotoGridAdapter mPhotoAdapter;
     private RecyclerView.LayoutManager mLayoutManager;
     private List<Photo> mPhotoObjectsList;
     private List<String> mPhotoUrlList;
@@ -55,6 +59,9 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
     private Handler mTimerHandler;
     private ObjectAnimator mObjectAnimator;
     private ProgressBar mLinearProgressBar;
+    private ImageView mGuessImageView;
+    private List<Integer> mGuessedPicIds;
+    private TextView mGuessTv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +76,7 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
         pref = PreferenceManager.getDefaultSharedPreferences(this);
         mRecyclerView = (RecyclerView) findViewById(R.id.photo_recycler_view);
         mNoNetworkRetryLayout = (LinearLayout) findViewById(R.id.network_retry_full_linearlayout);
+        mGuessTv = (TextView) findViewById(R.id.tv_guess_label);
         Button retryButton = (Button) findViewById(R.id.button_retry);
         retryButton.setOnClickListener(this);
 
@@ -76,8 +84,7 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
         mLinearProgressBar.setMax(MAX_PROGRESS);
         mTimerHandler = new TimerHandler();
 
-        Button startTimeButton = (Button) findViewById(R.id.button_start_timer);
-        startTimeButton.setOnClickListener(this);
+        mGuessImageView = (ImageView) findViewById(R.id.iv_guess_pic);
 
         // use this setting to improve performance if you know that changes
         // in content do not change the layout size of the RecyclerView
@@ -89,10 +96,13 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
         mRecyclerView.setLayoutManager(mLayoutManager);
         mPhotoObjectsList = new ArrayList<Photo>();
         mPhotoUrlList = new ArrayList<String>();
+        mGuessedPicIds = new ArrayList<>();
 
         // specify an adapter
-        mAdapter = new PhotoGridAdapter(this, mPhotoUrlList);
-        mRecyclerView.setAdapter(mAdapter);
+        mPhotoAdapter = new PhotoGridAdapter(this, this, mPhotoUrlList);
+        mRecyclerView.setAdapter(mPhotoAdapter);
+        //Fetch the photos from flickr api
+        fetchPhotosIfOnline();
     }
 
     @Override
@@ -101,22 +111,8 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
             case R.id.button_retry:
                 fetchPhotosIfOnline();
                 break;
-            case R.id.button_start_timer:
-                int timeFromServer = 60;
-                Message msg = mTimerHandler.obtainMessage(UPDATE_PROGRESS_BAR, timeFromServer, 0);
-                mTimerHandler.sendMessage(msg);
-                break;
         }
     }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (mPhotoObjectsList.isEmpty()) {
-            fetchPhotosIfOnline();
-        }
-    }
-
 
     private void fetchPhotosIfOnline() {
         if (NetworkUtils.isOnline(this)) {
@@ -200,7 +196,14 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
                 Size size = photoSizesList.get(1);
                 mPhotoUrlList.add(size.getSource());
                 Log.v(TAG, "Success : mPhotoUrlList size : " + mPhotoUrlList.size());
-                mAdapter.notifyDataSetChanged();
+                mPhotoAdapter.notifyDataSetChanged();
+            }
+
+            if (mPhotoUrlList.size() == 9) {
+                //when all 9 images url has been added, start the timer
+                int timeDuration = 15;
+                Message msg = mTimerHandler.obtainMessage(UPDATE_PROGRESS_BAR, timeDuration, 0);
+                mTimerHandler.sendMessage(msg);
             }
         }
     };
@@ -218,27 +221,21 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
                     // for smooth progress bar update.
                     mObjectAnimator =
                             ObjectAnimator.ofInt(mLinearProgressBar, "progress", 0, MAX_PROGRESS);
-                    mObjectAnimator.setDuration(timeDuration*1000);
-                    if (mInterpolator == null) mInterpolator = new LinearInterpolator() {
-                        @Override
-                        public float getInterpolation(float input) {
-                            Log.v(TAG, "getInterpolation() " + String.format("%.4f", input));
-                            return input;
-                        }
-                    };
+                    mObjectAnimator.setDuration(timeDuration * 1000);
+                    if (mInterpolator == null) mInterpolator = new LinearInterpolator();
                     mObjectAnimator.setInterpolator(mInterpolator);
                     mObjectAnimator.addListener(new Animator.AnimatorListener() {
                         @Override
                         public void onAnimationStart(Animator animation) {
-                            Log.d(TAG , "Start time " + System.currentTimeMillis());
-                            Log.d(TAG , "Get Duration  " + mObjectAnimator.getDuration());
                         }
 
                         @Override
                         public void onAnimationEnd(Animator animation) {
-                            Log.d(TAG , "End time " + System.currentTimeMillis());
-                            Log.d(TAG , "Get Duration  " + mObjectAnimator.getDuration());
                             Toast.makeText(ImageGridActivity.this, "Your timer has finished", Toast.LENGTH_SHORT).show();
+                            mPhotoAdapter.onTimerHasFinished();
+                            mPhotoAdapter.notifyDataSetChanged();
+                            showNextGuessPic();
+                            mGuessTv.setText(getString(R.string.guessing_started));
                         }
 
                         @Override
@@ -254,6 +251,30 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
                     mObjectAnimator.start();
                     break;
             }
+        }
+    }
+
+    public void showNextGuessPic() {
+        //Also set some random image to guess pic imageview
+
+        if (mGuessedPicIds.size() < mPhotoUrlList.size()) {
+            Random randomNo = new Random();
+            int picIdToUseInGuessPic;
+
+            do {
+                picIdToUseInGuessPic = randomNo.nextInt(9); //Values generate will be between 0 to 8
+            }
+            while (mGuessedPicIds.contains(picIdToUseInGuessPic));
+
+
+            String pictureUrlPath = mPhotoUrlList.get(picIdToUseInGuessPic);
+            PabloPicasso.with(ImageGridActivity.this).load(pictureUrlPath).placeholder(R.drawable.bg_grey_placeholder)
+                    .into(mGuessImageView);
+            mGuessedPicIds.add(picIdToUseInGuessPic);
+            mPhotoAdapter.setPicIdUsedInGuessPic(picIdToUseInGuessPic);
+            mPhotoAdapter.notifyDataSetChanged();
+        } else {
+            mGuessTv.setText(getString(R.string.guessing_completed));
         }
     }
 }

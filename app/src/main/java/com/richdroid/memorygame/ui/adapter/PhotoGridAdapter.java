@@ -1,6 +1,7 @@
 package com.richdroid.memorygame.ui.adapter;
 
 import android.content.Context;
+import android.media.MediaPlayer;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -14,6 +15,7 @@ import android.widget.Toast;
 import com.richdroid.memorygame.R;
 import com.richdroid.memorygame.utils.PabloPicasso;
 
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -24,36 +26,40 @@ public class PhotoGridAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     private static Context mContext;
     private static List<String> mPhotoUrlList;
     // Allows to remember the last item shown on screen
-    private int lastAnimatedItemPosition = -1;
-    //public static final String ARG_MOVIE_DETAIL = "MOVIE_DETAIL";
-
+    private int mLastAnimatedItemPosition = -1;
+    private boolean mTimerFinished = false;
+    private int mPicIdUsedInGuessPic = -1;
+    //To check whether all images has been guessed
+    // Initially fill all of them to false to show none of them has been guessed.
+    private HashMap<Integer, Boolean> mMap;
+    private OnGuessedCorrect mOnGuessedCorrect;
+    private MediaPlayer mediaPlayer;
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public PhotoGridAdapter(Context context, List<String> photoUrlList) {
+    public PhotoGridAdapter(Context context, OnGuessedCorrect onGuessedCorrect, List<String> photoUrlList) {
         mContext = context;
         mPhotoUrlList = photoUrlList;
+        mOnGuessedCorrect = onGuessedCorrect;
+        mMap = new HashMap<>();
+        for (int i = 0; i < 9; i++) {
+            mMap.put(i, false);
+        }
     }
 
     // Provide a reference to the views for each data item
     // Complex data items may need more than one view per item, and
     // you provide access to all the views for a data item in a view holder
     public class PhotoViewHolder extends RecyclerView.ViewHolder
-            implements View.OnClickListener, View.OnLongClickListener {
-        //private TextView mTVTitle;
+            implements View.OnClickListener {
         private CardView mCardView;
-        private ImageView mIVThumbNail;
-        //private TextView mTVRating;
-
+        private ImageView mGamePicIv;
 
         public PhotoViewHolder(View view) {
             super(view);
-            //this.mTVTitle = (TextView) view.findViewById(R.id.tv_title);
             this.mCardView = (CardView) view.findViewById(R.id.card_view);
-            this.mIVThumbNail = (ImageView) view.findViewById(R.id.iv_game_pic);
-            //this.mTVRating = (TextView) view.findViewById(R.id.tv_rating);
-            this.mIVThumbNail.setOnClickListener(this);
+            this.mGamePicIv = (ImageView) view.findViewById(R.id.iv_game_pic);
+            this.mGamePicIv.setOnClickListener(this);
             view.setOnClickListener(this);
-            view.setOnLongClickListener(this);
         }
 
         @Override
@@ -61,21 +67,31 @@ public class PhotoGridAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
             int itemPosition = getAdapterPosition();
 
             switch (view.getId()) {
-//                case R.id.iv_game_pic:
-//
-//
-//                    break;
+                case R.id.iv_game_pic:
 
-                default:
-                    Toast.makeText(mContext, "You clicked at position " + itemPosition +
-                            " on game pic." , Toast.LENGTH_SHORT).show();
+                    if (mTimerFinished && itemPosition == mPicIdUsedInGuessPic) {
+                        Toast.makeText(mContext, "You have guessed correctly ", Toast.LENGTH_SHORT).show();
+                        //And flip the image back.
+                        mMap.put(itemPosition, true);
+                        notifyItemChanged(itemPosition);
+                        mOnGuessedCorrect.showNextGuessPic();
+
+                        //Play the correct answer sound
+                        mediaPlayer = MediaPlayer.create(mContext, R.raw.correct_answer);
+                        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+
+                            @Override
+                            public void onCompletion(MediaPlayer mp) {
+                                mp.reset();
+                                mp.release();
+                            }
+
+                        });
+                        mediaPlayer.start();
+                    }
+
+                    break;
             }
-        }
-
-        @Override
-        public boolean onLongClick(View v) {
-            int itemPosition = getAdapterPosition();
-            return true;
         }
     }
 
@@ -94,12 +110,24 @@ public class PhotoGridAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
         PhotoViewHolder cusHolder = (PhotoViewHolder) holder;
-        //cusHolder.mTVTitle.setText(mDatasetList.get(position).getTitle());
-        //cusHolder.mTVRating.setText(String.valueOf(mDatasetList.get(position).getVoteAverage()));
-        String completePosterPath = mPhotoUrlList.get(position);
-        PabloPicasso.with(mContext).load(completePosterPath).placeholder(R.drawable.bg_grey_placeholder)
-                .into(cusHolder.mIVThumbNail);
-        cusHolder.mIVThumbNail.setVisibility(View.VISIBLE);
+        if (!mTimerFinished) {
+            String pictureUrlPath = mPhotoUrlList.get(position);
+            PabloPicasso.with(mContext).load(pictureUrlPath).placeholder(R.drawable.bg_grey_placeholder)
+                    .into(cusHolder.mGamePicIv);
+        } else {
+            //if timer has finished, then set the view with respect to map boolean value,
+            // like if they have been guessed, then show the image otherwise not
+            if (mMap.get(position)) {
+                String pictureUrlPath = mPhotoUrlList.get(position);
+                PabloPicasso.with(mContext).load(pictureUrlPath).placeholder(R.drawable.bg_grey_placeholder)
+                        .into(cusHolder.mGamePicIv);
+            } else {
+                cusHolder.mGamePicIv.setImageDrawable(mContext.getResources().getDrawable(R.drawable.bg_grey_placeholder));
+            }
+
+        }
+
+        cusHolder.mGamePicIv.setVisibility(View.VISIBLE);
         setEnterAnimation(cusHolder.mCardView, position);
     }
 
@@ -109,13 +137,21 @@ public class PhotoGridAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         return mPhotoUrlList.size();
     }
 
+    public void onTimerHasFinished() {
+        mTimerFinished = true;
+    }
+
+    public void setPicIdUsedInGuessPic(int picId) {
+        mPicIdUsedInGuessPic = picId;
+    }
+
     private void setEnterAnimation(View viewToAnimate, int position) {
         // If the bound view wasn't previously displayed on screen, it will be animated
-        if (position > lastAnimatedItemPosition) {
+        if (position > mLastAnimatedItemPosition) {
             //Animation using xml
             Animation animation = AnimationUtils.loadAnimation(mContext, R.anim.translate_up);
             viewToAnimate.startAnimation(animation);
-            lastAnimatedItemPosition = position;
+            mLastAnimatedItemPosition = position;
         }
     }
 
@@ -126,5 +162,9 @@ public class PhotoGridAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     @Override
     public void onViewDetachedFromWindow(final RecyclerView.ViewHolder holder) {
         ((PhotoViewHolder) holder).mCardView.clearAnimation();
+    }
+
+    public interface OnGuessedCorrect {
+        void showNextGuessPic();
     }
 }
