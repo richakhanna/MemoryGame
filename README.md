@@ -9,3 +9,10 @@ Creating a memory game
 * The current turn is not complete until the user identifies the correct image
 * The game ends when all 9 images have been flipped back
 * All images are fetched from Flickr’s public api : http://www.flickr.com/services/feeds/docs/photos_public/ 
+
+
+
+
+![timer](https://github.com/richakhanna/MemoryGame/blob/master/app/src/main/res/screenshots/when_timer_started.png) 
+![guess](https://github.com/richakhanna/MemoryGame/blob/master/app/src/main/res/screenshots/start_guessing_image.png)
+![guess_next](https://github.com/richakhanna/MemoryGame/blob/master/app/src/main/res/screenshots/guess_next.png)
