@@ -73,7 +73,7 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
         retryButton.setOnClickListener(this);
 
         mLinearProgressBar = (ProgressBar) findViewById(R.id.progress_bar_linear);
-        mTimerHandler = new RetryHandler();
+        mTimerHandler = new TimerHandler();
 
         Button startTimeButton = (Button) findViewById(R.id.button_start_timer);
         startTimeButton.setOnClickListener(this);
@@ -204,7 +204,7 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
         }
     };
 
-    private class RetryHandler extends Handler {
+    private class TimerHandler extends Handler {
 
         private LinearInterpolator mInterpolator;
 
