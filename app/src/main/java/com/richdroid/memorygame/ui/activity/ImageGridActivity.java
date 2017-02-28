@@ -73,6 +73,7 @@ public class ImageGridActivity extends AppCompatActivity implements View.OnClick
         retryButton.setOnClickListener(this);
 
         mLinearProgressBar = (ProgressBar) findViewById(R.id.progress_bar_linear);
+        mLinearProgressBar.setMax(MAX_PROGRESS);
         mTimerHandler = new TimerHandler();
 
         Button startTimeButton = (Button) findViewById(R.id.button_start_timer);
